@@ -14,7 +14,7 @@ options:
                         yt-dlp match filter for subscriptions feed
   --max-playlist-size MAX_PLAYLIST_SIZE
                         Maximum size of subscriptions playlist
-  --exclude-watched     Exclude watched videos from history
+  --exclude-watched     Exclude watched videos from history in playlist
   -v, --verbose         Verbose output
 
 ```
