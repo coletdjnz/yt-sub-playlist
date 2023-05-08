@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# create cron schedule
+python3 /src/docker/cron.py
+
+# set crontab
+crontab -u pl-updater /src/docker/default_cron
+
+chmod +x /src/docker/run.sh
+
+su pl-updater -s /bin/sh -c "/src/docker/run.sh"
+
+# start cron
+/usr/sbin/crond -f -l 0

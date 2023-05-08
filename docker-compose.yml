@@ -1,0 +1,11 @@
+version: "3.5"
+services:
+  yt_sub_playlist:
+        build: .
+        container_name: yt_sub_playlist
+        volumes:
+          - /path/to/cookies.txt:/cookies.txt
+        environment:
+            CRON_SCHEDULE: "1 * * * *"
+            UPDATER_OPTS: "--playlist-id PLMYPLAYLISTID"
+        restart: unless-stopped
