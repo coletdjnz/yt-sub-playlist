@@ -116,8 +116,7 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
             if video_id in watched:
                 continue
         new_videos[video_id] = timestamp
-
-    new_videos_ids = list(reversed(sorted(new_videos.keys(), key=lambda x: new_videos.get(x))))
+    new_videos_ids = list(reversed(sorted(new_videos.keys(), key=lambda x: new_videos.get(x) or 0)))
 
     logger.info(f'Adding {len(new_videos_ids)} videos to playlist')
     with YoutubeDL(GLOBAL_YDL_OPTS) as ydl:
