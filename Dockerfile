@@ -2,7 +2,7 @@ FROM alpine:latest
 MAINTAINER colethedj <colethedj@protonmail.com>
 
 ENV PYTHONUNBUFFERED=1
-COPY update.py requirements.txt update.py /src/
+COPY update.py requirements.txt yt_dlp_plugins /src/
 COPY docker/ /src/docker
 
 RUN addgroup -S -g 1000 pl-updater && adduser -S -G pl-updater -u 1000 pl-updater && \

@@ -19,6 +19,13 @@ options:
 
 ```
 
+Additionally, a plugin is provided that extracts `is_watched` from YouTube subscriptions 
+feed based on the video playback percentage. It should automatically be loaded when you run `update.py`. 
+You can use this with `--match-filter` e.g. `--match-filter !is_watched`.
+
+This can be used as an efficient alternative to `--exclude-watched`, which checks the history feed.
+
+Do note this only shows for standard videos i.e. not shorts, so you may need to use `--exclude-watched` if you don't filter those.
 ## Setup
 
 1. Install requirements
