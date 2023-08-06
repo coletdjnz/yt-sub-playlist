@@ -98,27 +98,8 @@ def clear_playlist(playlist_id, ytie, ytcfg: dict):
     logger.info(f'Playlist cleared successfully')
 
 
-def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None):
-    new_sub_iter = get_new_subs(match_filter=match_filter)
-    watched_iter = get_recent_watched()
-    watched = set()
-    new_videos = dict()
-    while len(new_videos) < max_playlist_size:
-        info, total = next(new_sub_iter)
-        video_id, timestamp = info['id'], info.get('timestamp')
-
-        # FIXME: this grabs way too much videos from history while still missing some
-        # Issue: yt-dlp doesn't get any sort of date from history feed
-        if exclude_watched:
-            # lazy workaround: get a little more of history than subscriptions fetched
-            while len(watched) < int(total+total*((1.01**(-0.125*total))+1.1)+100):
-                watched.add(next(watched_iter)['id'])
-            if video_id in watched:
-                continue
-        new_videos[video_id] = timestamp
-    new_videos_ids = list(reversed(sorted(new_videos.keys(), key=lambda x: new_videos.get(x) or 0)))
-
-    logger.info(f'Adding {len(new_videos_ids)} videos to playlist')
+def rewrite_playlist(playlist_id, new_video_ids):
+    logger.info(f'Adding {len(new_video_ids)} videos to playlist')
     with YoutubeDL(GLOBAL_YDL_OPTS) as ydl:
         ytie = ydl.get_info_extractor('YoutubeTab')
         _, ytcfg = ytie._extract_data('https://www.youtube.com', item_id='ytcfg', fatal=False)
@@ -135,9 +116,55 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
                         'action': 'ACTION_ADD_VIDEO',
                         'addedVideoId': video_id
                     }
-                    for video_id in new_videos_ids],
+                    for video_id in new_video_ids],
                 'playlistId': playlist_id,
             })
+
+
+def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None):
+    new_sub_iter = get_new_subs(match_filter=match_filter)
+    watched_iter = get_recent_watched()
+    watched = set()
+    new_videos = dict()
+
+    get_new_video_ids = lambda nv: list(reversed(sorted(nv.keys(), key=lambda x: nv.get(x) or 0)))
+
+    while len(new_videos) < max_playlist_size:
+        # Get a little more, so we can account for YouTube history not showing all watched videos
+        while len(new_videos) < max_playlist_size + ((0.5*max_playlist_size) if exclude_watched else 0):
+            info, total = next(new_sub_iter)
+            video_id, timestamp = info['id'], info.get('timestamp')
+
+            # FIXME: this grabs way too much videos from history while still missing some
+            # Issue: yt-dlp doesn't get any sort of date from history feed
+            if exclude_watched:
+                # lazy workaround: get a little more of history than subscriptions fetched
+                while len(watched) < int(total+total*((1.01**(-0.125*total))+1.1)+100):
+                    watched.add(next(watched_iter)['id'])
+                if video_id in watched:
+                    continue
+            new_videos[video_id] = timestamp
+
+        new_videos_ids = get_new_video_ids(new_videos)
+        rewrite_playlist(playlist_id, new_videos_ids)
+
+        if exclude_watched:
+            logger.info('Checking playlist for watched videos')
+
+            playlist_videos = get_playlist_videos(playlist_id)
+            for info in playlist_videos:
+                if match_filter_func('!is_watched')(info):
+                    # The video is already watched??
+                    logger.debug(f'Video {info["id"]} ({info["title"]}) is already watched!?')
+                    del new_videos[info['id']]
+                    watched.add(info['id'])
+        logger.debug(f'We have collected {len(new_videos)} videos from subscriptions feed so far (need: {max_playlist_size})')
+
+    if exclude_watched:
+        # Now all the videos we have should be unwatched. So rewrite the playlist with the latest videos
+        logger.info(f'Rewriting playlist with {max_playlist_size} unwatched videos from subscriptions feed')
+        rewrite_playlist(playlist_id, get_new_video_ids(new_videos)[:max_playlist_size])
+
     logger.info(f'Updated playlist with latest videos from subscriptions feed.')
 
 
