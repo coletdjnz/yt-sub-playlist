@@ -3,7 +3,7 @@
 Update a playlist with the latest videos from your YouTube subscriptions feed.
 
 ```
-usage: Update YouTube playlist with latest videos from subscriptions feed [-h] --playlist-id PLAYLIST_ID --cookies COOKIES [--match-filter MATCH_FILTER] [--max-playlist-size MAX_PLAYLIST_SIZE] [--exclude-watched] [-v]
+usage: Update YouTube playlist with latest videos from subscriptions feed [-h] --playlist-id PLAYLIST_ID --cookies COOKIES [--match-filter MATCH_FILTER] [--max-playlist-size MAX_PLAYLIST_SIZE] [--exclude-watched] [--shuffle] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -15,6 +15,7 @@ options:
   --max-playlist-size MAX_PLAYLIST_SIZE
                         Maximum size of subscriptions playlist
   --exclude-watched     Exclude watched videos from history in playlist
+  --shuffle             Shuffle videos before writing to the playlist
   -v, --verbose         Verbose output
 
 ```

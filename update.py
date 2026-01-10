@@ -1,6 +1,7 @@
 import sys
 import time
 import argparse
+import random
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import (
     match_filter_func
@@ -98,8 +99,11 @@ def clear_playlist(playlist_id, ytie, ytcfg: dict):
     logger.info(f'Playlist cleared successfully')
 
 
-def rewrite_playlist(playlist_id, new_video_ids):
+def rewrite_playlist(playlist_id, new_video_ids, shuffle=False):
     logger.info(f'Adding {len(new_video_ids)} videos to playlist')
+    ids_to_write = list(new_video_ids)
+    if shuffle:
+        random.shuffle(ids_to_write)
     with YoutubeDL(GLOBAL_YDL_OPTS) as ydl:
         ytie = ydl.get_info_extractor('YoutubeTab')
         _, ytcfg = ytie._extract_data('https://www.youtube.com', item_id='ytcfg', fatal=False)
@@ -116,12 +120,12 @@ def rewrite_playlist(playlist_id, new_video_ids):
                         'action': 'ACTION_ADD_VIDEO',
                         'addedVideoId': video_id
                     }
-                    for video_id in new_video_ids],
+                    for video_id in ids_to_write],
                 'playlistId': playlist_id,
             })
 
 
-def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None):
+def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None, shuffle=False):
     new_sub_iter = get_new_subs(match_filter=match_filter)
     watched_iter = get_recent_watched()
     watched = set()
@@ -146,7 +150,7 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
             new_videos[video_id] = timestamp
 
         new_videos_ids = get_new_video_ids(new_videos)
-        rewrite_playlist(playlist_id, new_videos_ids)
+        rewrite_playlist(playlist_id, new_videos_ids, shuffle=shuffle)
 
         if exclude_watched:
             logger.info('Checking playlist for watched videos')
@@ -163,7 +167,7 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
     if exclude_watched:
         # Now all the videos we have should be unwatched. So rewrite the playlist with the latest videos
         logger.info(f'Rewriting playlist with {max_playlist_size} unwatched videos from subscriptions feed')
-        rewrite_playlist(playlist_id, get_new_video_ids(new_videos)[:max_playlist_size])
+        rewrite_playlist(playlist_id, get_new_video_ids(new_videos)[:max_playlist_size], shuffle=shuffle)
 
     logger.info(f'Updated playlist with latest videos from subscriptions feed.')
 
@@ -175,6 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--match-filter', help='yt-dlp match filter for subscriptions feed')
     parser.add_argument('--max-playlist-size', type=int, default=300, help='Maximum size of subscriptions playlist')
     parser.add_argument('--exclude-watched', action='store_true', help='Exclude watched videos from history in playlist', default=False)
+    parser.add_argument('--shuffle', action='store_true', help='Shuffle videos before writing to the playlist', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output', default=False)
 
     args = parser.parse_args()
@@ -188,4 +193,4 @@ if __name__ == '__main__':
         logger.add(sys.stderr, level='INFO')
     logger.debug(args)
 
-    run(playlist_id=args.playlist_id, max_playlist_size=args.max_playlist_size, exclude_watched=args.exclude_watched, match_filter=args.match_filter)
+    run(playlist_id=args.playlist_id, max_playlist_size=args.max_playlist_size, exclude_watched=args.exclude_watched, match_filter=args.match_filter, shuffle=args.shuffle)
