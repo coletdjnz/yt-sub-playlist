@@ -144,7 +144,10 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
             if exclude_watched:
                 # lazy workaround: get a little more of history than subscriptions fetched
                 while len(watched) < int(total+total*((1.01**(-0.125*total))+1.1)+100):
-                    watched.add(next(watched_iter)['id'])
+                    next_watched = next(watched_iter, None)
+                    if next_watched is None:
+                        break
+                    watched.add(next_watched['id'])
                 if video_id in watched:
                     continue
             new_videos[video_id] = timestamp
