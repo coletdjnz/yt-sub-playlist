@@ -2,6 +2,7 @@ import sys
 import time
 import argparse
 import random
+from pathlib import Path
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import (
     match_filter_func
@@ -72,6 +73,18 @@ def get_recent_watched():
         return data['entries']
 
 
+def load_ignore_ids(ignore_file):
+    if ignore_file is None:
+        return set()
+
+    with Path(ignore_file).open(encoding='utf-8') as file:
+        return {
+            line.strip()
+            for line in file
+            if line.strip() and not line.lstrip().startswith('#')
+        }
+
+
 def clear_playlist(playlist_id, ytie, ytcfg: dict):
     playlist_video_ids = [info['id'] for info in get_playlist_videos(playlist_id) if info]
     headers = ytie.generate_api_headers(ytcfg=ytcfg)
@@ -125,10 +138,13 @@ def rewrite_playlist(playlist_id, new_video_ids, shuffle=False):
             })
 
 
-def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None, shuffle=False):
+def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=None, shuffle=False, ignore_ids=None):
     new_sub_iter = get_new_subs(match_filter=match_filter)
     watched_iter = get_recent_watched()
-    watched = set()
+    if ignore_ids:
+        logger.info(f'Ignoring {len(set(ignore_ids))} video IDs from ignore file')
+    watched = set(ignore_ids or ())
+    history_watched = set()
     new_videos = dict()
 
     get_new_video_ids = lambda nv: list(reversed(sorted(nv.keys(), key=lambda x: nv.get(x) or 0)))
@@ -143,13 +159,14 @@ def run(playlist_id, max_playlist_size=300, exclude_watched=False, match_filter=
             # Issue: yt-dlp doesn't get any sort of date from history feed
             if exclude_watched:
                 # lazy workaround: get a little more of history than subscriptions fetched
-                while len(watched) < int(total+total*((1.01**(-0.125*total))+1.1)+100):
+                while len(history_watched) < int(total+total*((1.01**(-0.125*total))+1.1)+100):
                     next_watched = next(watched_iter, None)
                     if next_watched is None:
                         break
+                    history_watched.add(next_watched['id'])
                     watched.add(next_watched['id'])
-                if video_id in watched:
-                    continue
+            if video_id in watched:
+                continue
             new_videos[video_id] = timestamp
 
         new_videos_ids = get_new_video_ids(new_videos)
@@ -182,10 +199,16 @@ if __name__ == '__main__':
     parser.add_argument('--match-filter', help='yt-dlp match filter for subscriptions feed')
     parser.add_argument('--max-playlist-size', type=int, default=300, help='Maximum size of subscriptions playlist')
     parser.add_argument('--exclude-watched', action='store_true', help='Exclude watched videos from history in playlist', default=False)
+    parser.add_argument('--ignore-file', help='Path to a file containing video IDs to exclude, one per line')
     parser.add_argument('--shuffle', action='store_true', help='Shuffle videos before writing to the playlist', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output', default=False)
 
     args = parser.parse_args()
+    try:
+        ignore_ids = load_ignore_ids(args.ignore_file)
+    except OSError as error:
+        parser.error(f'Unable to read ignore file {args.ignore_file}: {error}')
+
     GLOBAL_YDL_OPTS['cookiefile'] = args.cookies
     logger.remove()
     if args.verbose:
@@ -196,4 +219,4 @@ if __name__ == '__main__':
         logger.add(sys.stderr, level='INFO')
     logger.debug(args)
 
-    run(playlist_id=args.playlist_id, max_playlist_size=args.max_playlist_size, exclude_watched=args.exclude_watched, match_filter=args.match_filter, shuffle=args.shuffle)
+    run(playlist_id=args.playlist_id, max_playlist_size=args.max_playlist_size, exclude_watched=args.exclude_watched, match_filter=args.match_filter, shuffle=args.shuffle, ignore_ids=ignore_ids)
